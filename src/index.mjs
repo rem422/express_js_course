@@ -1,23 +1,57 @@
 // creating a server in express
-import express, {request, response} from "express";
+import express from "express";
 
 const app = express();
+app.use(express.json());
+
+// MIDDLEWARE
+const loggingMiddleware = (req, res, next) => {
+    console.log(`${req.method} ${req.url}`);
+    next();
+};
+
+app.use(loggingMiddleware);
+
+const resolveIndexByUserId = (req, res, next) => {
+    const {
+        params: {id},
+    } = req;
+    const parsedId = parseInt(id);
+    if(isNaN(parsedId)) return res.SendStatus(400);
+    const findUserIndex = mockUsers.findIndex((user) => user.id === parsedId);
+    if(findUserIndex === -1) return res.sendStatus(404);
+    req.findUserIndex = findUserIndex;
+    next();
+}
 
 const PORT = process.env.PORT || 3000;
 
 const mockUsers = [
     {id: 1, username: "anson", displayName: 'Anson'},
     {id: 2, username: "jack", displayName: 'Jack'},
-    {id: 1, username: "adam", displayName: 'adam'}
-]
+    {id: 3, username: "adam", displayName: 'Adam'},
+    {id: 4, username: "tina", displayName: 'Tina'},
+    {id: 5, username: "jason", displayName: 'Jason'},
+    {id: 6, username: "henry", displayName: 'Henry'},
+    {id: 7, username: "marilyn", displayName: 'Marilyn'},
+];
 
-//Get Request
-app.get("/", (request, response) => {
-    response.status(201).send({msg: 'Hello, world!'});
+//GET REQUEST
+app.get("/", (req, res) => {
+    res.status(201).send({msg: 'Hello'});
 });
 
+//QUERY PARAMS
 app.get("/api/users", (req, res)=> {
-    res.status(201).send(mockUsers);
+    console.log(req.query);
+    const {query: {filter, value},
+    } = req;
+    // when filter & value are undefined
+    if(!filter && !value) return res.send(mockUsers);
+    if(filter && value) return res.send(
+        mockUsers.filter((user) => user[filter].includes(value))
+    );
+    return res.send(mockUsers);
 })
 
 app.get("/api/products", (req, res) => {
@@ -27,31 +61,51 @@ app.get("/api/products", (req, res) => {
 });
 
 //ROUTE PARAMS
-app.get('/api/users/:id', (req, res) => {
-    console.log(req.params);
-    const parsedId = parseInt(req.params.id);
-    console.log(parsedId);
-    if(isNaN(parsedId)) return res.status(400).send({msg: 'Bad request. Invalid ID'});
-
-    const findUser = mockUsers.find((user) => user.id === parsedId);
+app.get('/api/users/:id', resolveIndexByUserId, (req, res) => {
+    const { findUserIndex } = req;
+    const findUser = mockUsers[findUserIndex];
     if(!findUser) return res.sendStatus(404);
     return res.send(findUser);
 });
 
-//QUERY PARAMS
+//POST REQUEST
+app.post('/api/users', (req, res) => {
+    console.log(req.body);
+    const {body} = req;
+    const newUser = {id: mockUsers[mockUsers.length -1].id + 1, ...body};
+    mockUsers.push(newUser);
+    console.log(mockUsers);
+    return res.status(201).send(newUser);
+});
 
+//PUT REQUEST
+app.put('/api/users/:id', resolveIndexByUserId, (req, res) => {
+    const { 
+        body, 
+        findUserIndex 
+    } = req;
+    mockUsers[findUserIndex] = {id: mockUsers[findUserIndex].id, ...body};
+    return res.sendStatus(200);
+});
 
+//PATCH REQUEST
+app.patch('/api/users/:id', resolveIndexByUserId, (req, res) => {
+    const { 
+        body, 
+        findUserIndex 
+    } = req;
+    mockUsers[findUserIndex] = {...mockUsers[findUserIndex], ...body};
+    return res.sendStatus(200);
+});
 
-
-
-
-
-
-
-
-
-
-
+//DELETE REQUEST
+app.delete('/api/users/:id', resolveIndexByUserId, (req, res) => {
+    const {
+        findUserIndex,
+    } = req;
+    mockUsers.splice(findUserIndex, 1);
+    return res.sendStatus(200);
+});
 
 
 
@@ -70,5 +124,3 @@ app.get('/api/users/:id', (req, res) => {
 app.listen(PORT, () => {
     console.log(`Running on port http://localhost:${PORT}`);
 });
-
-
