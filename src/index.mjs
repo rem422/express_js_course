@@ -1,7 +1,10 @@
 // creating a server in express
 import express from "express";
+import { query, validationResult, body, matchedData, checkSchema } from "express-validator";
+import { createUserValidationSchema } from "./utils/validationSchemas.mjs";
 
 const app = express();
+
 app.use(express.json());
 
 // MIDDLEWARE
@@ -41,10 +44,20 @@ app.get("/", (req, res) => {
     res.status(201).send({msg: 'Hello'});
 });
 
-//QUERY PARAMS
-app.get("/api/users", (req, res)=> {
-    console.log(req.query);
-    const {query: {filter, value},
+//Query params
+app.get(
+    "/api/users", 
+    query("filter")
+        .isString()
+        .notEmpty()
+        .withMessage("Must not be empty")
+        .isLength({min: 3, max: 10})
+        .withMessage("Must atleast 3 to 10 characters"), 
+    (req, res)=> {
+    const result = validationResult(req);
+    console.log(result);
+    const {
+        query: {filter, value},
     } = req;
     // when filter & value are undefined
     if(!filter && !value) return res.send(mockUsers);
@@ -52,7 +65,7 @@ app.get("/api/users", (req, res)=> {
         mockUsers.filter((user) => user[filter].includes(value))
     );
     return res.send(mockUsers);
-})
+});
 
 app.get("/api/products", (req, res) => {
     res.send([
@@ -60,7 +73,7 @@ app.get("/api/products", (req, res) => {
     ]);
 });
 
-//ROUTE PARAMS
+//Route params
 app.get('/api/users/:id', resolveIndexByUserId, (req, res) => {
     const { findUserIndex } = req;
     const findUser = mockUsers[findUserIndex];
@@ -69,13 +82,19 @@ app.get('/api/users/:id', resolveIndexByUserId, (req, res) => {
 });
 
 //POST REQUEST
-app.post('/api/users', (req, res) => {
-    console.log(req.body);
-    const {body} = req;
-    const newUser = {id: mockUsers[mockUsers.length -1].id + 1, ...body};
-    mockUsers.push(newUser);
-    console.log(mockUsers);
-    return res.status(201).send(newUser);
+app.post('/api/users', checkSchema(createUserValidationSchema), (req, res) => {
+        const result = validationResult(req);
+        console.log(result);
+
+        // if there is an error, send the errors
+        if(!result.isEmpty()) 
+            return res.status(400).send({errors: result.array()});
+
+        const data = matchedData(req);
+        const newUser = {id: mockUsers[mockUsers.length -1].id + 1, ...data};
+        mockUsers.push(newUser);
+        console.log(mockUsers);
+        return res.status(201).send(newUser);
 });
 
 //PUT REQUEST
