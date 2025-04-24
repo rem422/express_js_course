@@ -1,6 +1,6 @@
 // creating a server in express
 import express from "express";
-import routes from "./routes/users.mjs";
+import routes from "./routes/index.mjs";
 
 const app = express();
 
