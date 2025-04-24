@@ -1,3 +1,5 @@
+import { query } from "express-validator";
+
 export const createUserValidationSchema = {
 username: {
     notEmpty: {
